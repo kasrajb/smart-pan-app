@@ -1,7 +1,5 @@
 /* ==========================================
    SMART PAN - TEMPERATURE CONTROL SYSTEM
-   JavaScript Application Logic
-   McGill University HCI Project
    ========================================== */
 
 // ==========================================
@@ -150,11 +148,6 @@ function attachEventListeners() {
     
     // Cancel button - Stop heating and reset
     elements.cancelBtn.addEventListener('click', handleCancel);
-    
-    // ✨ NEW: Test Overheat button
-    if (elements.testOverheatBtn) {
-        elements.testOverheatBtn.addEventListener('click', startOverheatTest);
-    }
     
     // Unit toggle buttons - Input screen
     elements.unitFahrenheit.addEventListener('click', () => switchUnit('F'));
@@ -390,11 +383,6 @@ function startHeatingSimulation() {
     // Update status
     updateStatus('heating');
     
-    // Hide test overheat button initially
-    if (elements.testOverheatBtn) {
-        elements.testOverheatBtn.classList.add('hidden');
-    }
-    
     // Clear any existing interval
     if (appState.heatingInterval) {
         clearInterval(appState.heatingInterval);
@@ -418,49 +406,18 @@ function startHeatingSimulation() {
  * }
  */
 function simulateTemperatureIncrease() {
-    // CASE 1: Temperature Stabilized at Target (normal operation)
-    if (appState.isStabilized && !appState.isOverheating) {
-        // Small realistic fluctuations around target (±2°F or ±1°C)
-        const fluctuation = appState.stabilizationFluctuation[appState.unit];
-        const randomFluctuation = (Math.random() - 0.5) * fluctuation * 2;
-        appState.currentTemp = appState.targetTemp + randomFluctuation;
-        
-        // Update display
-        updateTemperatureDisplay();
-        return;
-    }
-    
-    // CASE 2: Manual Overheat Test Mode
-    if (appState.isOverheating) {
-        // Continue heating past target
-        appState.currentTemp += appState.HEATING_RATE * 0.5; // Slower overheat rate
-        
-        // Check if overheat warning threshold reached
-        checkOverheating();
-        
-        // Update displays
-        updateTemperatureDisplay();
-        updateProgressBar();
-        updateTimeEstimate();
-        return;
-    }
-    
-    // CASE 3: Normal Heating to Target
-    if (appState.currentTemp >= appState.targetTemp) {
-        // Target reached - stabilize
-        appState.currentTemp = appState.targetTemp;
-        stopHeating();
-        targetReached();
-        return;
-    }
-    
-    // Increase temperature by heating rate
+    // Continuously increase temperature - will trigger overheat warning automatically
     appState.currentTemp += appState.HEATING_RATE;
     
-    // Don't overshoot target
-    if (appState.currentTemp > appState.targetTemp) {
-        appState.currentTemp = appState.targetTemp;
+    // Check if target reached (for notification only)
+    if (!appState.targetReached && appState.currentTemp >= appState.targetTemp) {
+        appState.targetReached = true;
+        notifyUser();
+        updateStatus('ready');
     }
+    
+    // Check for overheating (automatic warning)
+    checkOverheating();
     
     // Update displays
     updateTemperatureDisplay();
@@ -620,8 +577,7 @@ function updateStatus(status) {
     const unit = appState.unit === 'F' ? '°F' : '°C';
     
     if (status === 'heating') {
-        const percentage = Math.round(((appState.currentTemp - appState.heatingStartTemp) / (appState.targetTemp - appState.heatingStartTemp)) * 100);
-        statusText.textContent = `Heating to ${Math.round(appState.targetTemp)}${unit}... ${Math.min(percentage, 100)}%`;
+        statusText.textContent = `Heating to ${Math.round(appState.targetTemp)}${unit}...`;
         elements.statusIndicator.classList.remove('ready', 'overheating');
         elements.currentTempDisplay.classList.remove('ready');
         elements.progressBar.classList.remove('ready');
@@ -643,7 +599,6 @@ function updateStatus(status) {
 // ==========================================
 function targetReached() {
     appState.targetReached = true;
-    appState.isStabilized = true;
     
     // Update UI to success state
     updateStatus('ready');
@@ -656,18 +611,10 @@ function targetReached() {
         elements.timeEstimate.textContent = '';
     }
     
-    // ✨ NEW: Show "Test Overheat" button when target reached
-    if (elements.testOverheatBtn) {
-        elements.testOverheatBtn.classList.remove('hidden');
-    }
-    
     // Play notification (visual + potential sound)
     notifyUser();
     
-    // Keep interval running for temperature stabilization (small fluctuations)
-    // Don't call stopHeating() - we want to keep simulating stabilized temp
-    
-    console.log('Target temperature reached! Temperature will now stabilize.');
+    console.log('Target temperature reached! Temperature will continue rising.');
 }
 
 function stopHeating() {
@@ -677,29 +624,6 @@ function stopHeating() {
         clearInterval(appState.heatingInterval);
         appState.heatingInterval = null;
     }
-}
-
-/**
- * ✨ NEW FEATURE: Manual Overheat Test
- * Allows users to test the overheat warning after target is reached
- */
-function startOverheatTest() {
-    appState.isOverheating = true;
-    appState.isStabilized = false;
-    
-    // Hide the test button
-    if (elements.testOverheatBtn) {
-        elements.testOverheatBtn.classList.add('hidden');
-    }
-    
-    // Restart the heating interval if not running
-    if (!appState.heatingInterval) {
-        appState.heatingInterval = setInterval(() => {
-            simulateTemperatureIncrease();
-        }, appState.UPDATE_INTERVAL);
-    }
-    
-    console.log('Overheat test initiated - temperature will continue rising');
 }
 
 // ==========================================
