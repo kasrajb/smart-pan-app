@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Smart Pan - Precision cooking temperature control system">
+    <title>Smart Pan - Temperature Control</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Main App Container -->
+    <div class="app-container">
+        
+        <!-- SCREEN 1: Temperature Input Screen -->
+        <section id="input-screen" class="screen active" aria-labelledby="input-heading">
+            <header class="app-header">
+                <h1 id="input-heading">Smart Pan</h1>
+                <p class="subtitle">Precision Temperature Control</p>
+                
+                <!-- Unit Toggle -->
+                <div class="unit-toggle" role="switch" aria-checked="true" aria-label="Temperature unit toggle">
+                    <button id="unit-fahrenheit" class="unit-btn active" aria-label="Switch to Fahrenheit">°F</button>
+                    <button id="unit-celsius" class="unit-btn" aria-label="Switch to Celsius">°C</button>
+                </div>
+            </header>
+
+            <div class="input-content">
+                <label for="temperature-input" class="input-label">Set Target Temperature</label>
+                
+                <!-- Temperature Input Field -->
+                <div class="temperature-input-wrapper">
+                    <input 
+                        type="number" 
+                        id="temperature-input" 
+                        class="temperature-input" 
+                        min="100" 
+                        max="300" 
+                        step="5"
+                        placeholder="180"
+                        aria-label="Target temperature in Celsius"
+                        aria-describedby="temp-range-info"
+                    >
+                    <span class="unit-label" aria-hidden="true">°C</span>
+                </div>
+                
+                <p id="temp-range-info" class="range-info">Range: 100°C - 300°C</p>
+                
+                <!-- Error Message -->
+                <div id="error-message" class="error-message" role="alert" aria-live="polite"></div>
+                
+                <!-- Quick Select Presets -->
+                <div class="presets-container">
+                    <p class="presets-label">Quick Select:</p>
+                    <div class="presets-buttons">
+                        <button 
+                            class="preset-btn" 
+                            data-temp="150"
+                            aria-label="Set temperature to 150 degrees Celsius for low heat"
+                        >
+                            <span class="preset-name">Low</span>
+                            <span class="preset-temp">150°C</span>
+                        </button>
+                        <button 
+                            class="preset-btn" 
+                            data-temp="180"
+                            aria-label="Set temperature to 180 degrees Celsius for medium heat"
+                        >
+                            <span class="preset-name">Medium</span>
+                            <span class="preset-temp">180°C</span>
+                        </button>
+                        <button 
+                            class="preset-btn" 
+                            data-temp="230"
+                            aria-label="Set temperature to 230 degrees Celsius for high heat"
+                        >
+                            <span class="preset-name">High</span>
+                            <span class="preset-temp">230°C</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Start Button -->
+                <button 
+                    id="start-button" 
+                    class="primary-btn"
+                    aria-label="Start heating to target temperature"
+                >
+                    Start Heating
+                </button>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: Temperature Monitoring Screen -->
+        <section id="monitoring-screen" class="screen" aria-labelledby="monitoring-heading">
+            <header class="app-header">
+                <h1 id="monitoring-heading">Smart Pan</h1>
+                
+                <!-- Unit Toggle -->
+                <div class="unit-toggle" role="switch" aria-checked="true" aria-label="Temperature unit toggle">
+                    <button id="unit-fahrenheit-monitor" class="unit-btn active" aria-label="Switch to Fahrenheit">°F</button>
+                    <button id="unit-celsius-monitor" class="unit-btn" aria-label="Switch to Celsius">°C</button>
+                </div>
+            </header>
+
+            <div class="monitoring-content">
+                <!-- Status Indicator -->
+                <div id="status-indicator" class="status-indicator" role="status" aria-live="polite">
+                    <span class="status-text">Heating...</span>
+                </div>
+                
+                <!-- Overheating Warning -->
+                <div id="overheating-warning" class="overheating-warning hidden" role="alert" aria-live="assertive">
+                    ⚠️ Warning: Temperature exceeded target!
+                </div>
+
+                <!-- Current Temperature Display (Main Focus) -->
+                <div class="current-temp-display">
+                    <p class="temp-label">Current Temperature</p>
+                    <div class="temp-value-wrapper">
+                        <span id="current-temp" class="temp-value" aria-live="polite">25</span>
+                        <span class="temp-unit">°C</span>
+                    </div>
+                </div>
+
+                <!-- Target Temperature Display -->
+                <div class="target-temp-display">
+                    <p class="temp-label">Target Temperature</p>
+                    <div class="temp-value-wrapper-small">
+                        <span id="target-temp-display" class="temp-value-small">180</span>
+                        <span class="temp-unit-small">°C</span>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div class="progress-label">Progress to Target</div>
+                    <div class="progress-bar-wrapper">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                    <div class="progress-percentage">
+                        <span id="progress-text">0%</span>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="control-buttons">
+                    <button 
+                        id="change-target-btn" 
+                        class="secondary-btn"
+                        aria-label="Change target temperature"
+                    >
+                        Change Target
+                    </button>
+                    <button 
+                        id="cancel-btn" 
+                        class="danger-btn"
+                        aria-label="Cancel heating and return to start"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Audio Element for Notification Sound -->
+    <audio id="notification-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ0PVKzn77BdGQ" type="audio/wav">
+    </audio>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>

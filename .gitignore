@@ -1,0 +1,17 @@
+# Exclude large PDF files
+*.pdf
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Exclude logs
+*.log
+npm-debug.log*
