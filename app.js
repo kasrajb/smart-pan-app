@@ -553,15 +553,12 @@ function checkOverheating() {
             console.warn('Warning: Temperature exceeded target!');
         }
         
-        // Update warning message with current temperature
+        // Update warning message with just the difference
         const overheatAmount = Math.round(appState.currentTemp - appState.targetTemp);
         elements.overheatWarning.textContent = 
-            `⚠️ WARNING: Overheating! Current: ${Math.round(appState.currentTemp)}${unit} (Target: ${Math.round(appState.targetTemp)}${unit}, +${overheatAmount}${unit})`;
+            `⚠️ WARNING: Overheating by +${overheatAmount}${unit}!`;
         
-        // Update status to show overheating
-        updateStatus('overheating');
-        
-        // Add visual warning to screen
+        // Add visual warning to screen (but don't update status - avoid duplicate message)
         elements.monitoringScreen.classList.add('overheating');
     } else {
         // Hide overheat warning
