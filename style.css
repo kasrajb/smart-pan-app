@@ -435,8 +435,7 @@ body {
 }
 
 .status-indicator.overheating {
-    background: var(--color-danger);
-    animation: warningPulse 1s ease-in-out infinite;
+    display: none; /* Hide green status box when overheating */
 }
 
 @keyframes pulse {

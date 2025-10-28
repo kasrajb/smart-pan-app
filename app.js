@@ -225,6 +225,13 @@ function switchUnit(newUnit) {
     updateRangeInfo();
     updateAllTemperatureDisplays();
     
+    // Update status message with new unit if heating is active
+    if (appState.isHeating && appState.targetReached) {
+        updateStatus('ready');
+    } else if (appState.isHeating) {
+        updateStatus('heating');
+    }
+    
     console.log(`Switched to ${newUnit === 'F' ? 'Fahrenheit' : 'Celsius'}`);
 }
 
@@ -558,7 +565,11 @@ function checkOverheating() {
         elements.overheatWarning.textContent = 
             `⚠️ WARNING: Overheating by +${overheatAmount}${unit}!`;
         
-        // Add visual warning to screen (but don't update status - avoid duplicate message)
+        // Hide the green "Target reached" status when overheating
+        elements.statusIndicator.classList.remove('ready');
+        elements.statusIndicator.classList.add('overheating');
+        
+        // Add visual warning to screen
         elements.monitoringScreen.classList.add('overheating');
     } else {
         // Hide overheat warning
