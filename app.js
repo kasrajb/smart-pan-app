@@ -12,9 +12,15 @@ const appState = {
     targetTemp: null,          // User-defined target temperature
     isHeating: false,          // Whether heating is in progress
     targetReached: false,      // Whether target temperature has been reached
+    isStabilized: false,       // Whether temperature is stabilized at target
+    isOverheating: false,      // Whether in manual overheat test mode
     heatingInterval: null,     // Reference to the heating simulation interval
     HEATING_RATE: 12.6,        // Temperature increase per second (12.6°F = 7°C)
     UPDATE_INTERVAL: 1000,     // Update frequency in milliseconds
+    
+    // Time tracking for estimates
+    heatingStartTime: null,    // When heating began
+    heatingStartTemp: 77,      // Temperature when heating started
     
     // Unit system - default to Fahrenheit (North American standard)
     unit: 'F',                 // 'F' for Fahrenheit, 'C' for Celsius
@@ -35,6 +41,12 @@ const appState = {
     overheatThreshold: {
         F: 20,  // 20°F over target
         C: 10   // 10°C over target
+    },
+    
+    // Temperature stabilization
+    stabilizationFluctuation: {
+        F: 2,   // ±2°F fluctuation when stabilized
+        C: 1    // ±1°C fluctuation when stabilized
     }
 };
 
@@ -61,6 +73,8 @@ const elements = {
     changeTargetBtn: document.getElementById('change-target-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     overheatWarning: document.getElementById('overheating-warning'),
+    timeEstimate: document.getElementById('time-estimate'),
+    testOverheatBtn: document.getElementById('test-overheat-btn'),
     
     // Unit Toggle Buttons
     unitFahrenheit: document.getElementById('unit-fahrenheit'),
@@ -136,6 +150,11 @@ function attachEventListeners() {
     
     // Cancel button - Stop heating and reset
     elements.cancelBtn.addEventListener('click', handleCancel);
+    
+    // ✨ NEW: Test Overheat button
+    if (elements.testOverheatBtn) {
+        elements.testOverheatBtn.addEventListener('click', startOverheatTest);
+    }
     
     // Unit toggle buttons - Input screen
     elements.unitFahrenheit.addEventListener('click', () => switchUnit('F'));
@@ -361,9 +380,20 @@ function handleStartHeating() {
 function startHeatingSimulation() {
     appState.isHeating = true;
     appState.targetReached = false;
+    appState.isStabilized = false;
+    appState.isOverheating = false;
+    
+    // Track heating start time and temperature for estimates
+    appState.heatingStartTime = Date.now();
+    appState.heatingStartTemp = appState.currentTemp;
     
     // Update status
     updateStatus('heating');
+    
+    // Hide test overheat button initially
+    if (elements.testOverheatBtn) {
+        elements.testOverheatBtn.classList.add('hidden');
+    }
     
     // Clear any existing interval
     if (appState.heatingInterval) {
@@ -388,8 +418,36 @@ function startHeatingSimulation() {
  * }
  */
 function simulateTemperatureIncrease() {
-    // Don't exceed target temperature
+    // CASE 1: Temperature Stabilized at Target (normal operation)
+    if (appState.isStabilized && !appState.isOverheating) {
+        // Small realistic fluctuations around target (±2°F or ±1°C)
+        const fluctuation = appState.stabilizationFluctuation[appState.unit];
+        const randomFluctuation = (Math.random() - 0.5) * fluctuation * 2;
+        appState.currentTemp = appState.targetTemp + randomFluctuation;
+        
+        // Update display
+        updateTemperatureDisplay();
+        return;
+    }
+    
+    // CASE 2: Manual Overheat Test Mode
+    if (appState.isOverheating) {
+        // Continue heating past target
+        appState.currentTemp += appState.HEATING_RATE * 0.5; // Slower overheat rate
+        
+        // Check if overheat warning threshold reached
+        checkOverheating();
+        
+        // Update displays
+        updateTemperatureDisplay();
+        updateProgressBar();
+        updateTimeEstimate();
+        return;
+    }
+    
+    // CASE 3: Normal Heating to Target
     if (appState.currentTemp >= appState.targetTemp) {
+        // Target reached - stabilize
         appState.currentTemp = appState.targetTemp;
         stopHeating();
         targetReached();
@@ -404,12 +462,10 @@ function simulateTemperatureIncrease() {
         appState.currentTemp = appState.targetTemp;
     }
     
-    // Check for overheating
-    checkOverheating();
-    
-    // Update display
+    // Update displays
     updateTemperatureDisplay();
     updateProgressBar();
+    updateTimeEstimate();
 }
 
 // ==========================================
@@ -421,18 +477,108 @@ function updateTemperatureDisplay() {
 
 function updateProgressBar() {
     // Calculate progress percentage
-    const startTemp = appState.unit === 'F' ? 77 : 25; // Room temperature
+    const startTemp = appState.heatingStartTemp || (appState.unit === 'F' ? 77 : 25);
     const range = appState.targetTemp - startTemp;
     const current = appState.currentTemp - startTemp;
-    const percentage = Math.min((current / range) * 100, 100);
+    let percentage = Math.min((current / range) * 100, 100);
     
-    // Update progress bar
-    elements.progressBar.style.width = `${percentage}%`;
-    elements.progressText.textContent = `${Math.round(percentage)}%`;
+    // Handle overheat mode (show >100%)
+    if (appState.isOverheating && appState.currentTemp > appState.targetTemp) {
+        const overheatAmount = appState.currentTemp - appState.targetTemp;
+        const overheatPercentage = (overheatAmount / appState.overheatThreshold[appState.unit]) * 10;
+        percentage = Math.min(100 + overheatPercentage, 120);
+    }
+    
+    // Update progress bar width
+    elements.progressBar.style.width = `${Math.min(percentage, 100)}%`;
+    
+    // Update percentage text
+    if (percentage > 100) {
+        elements.progressText.textContent = `>100%`;
+    } else {
+        elements.progressText.textContent = `${Math.round(percentage)}%`;
+    }
     
     // Update progress bar ARIA attribute
     const progressContainer = document.querySelector('.progress-container');
-    progressContainer.setAttribute('aria-valuenow', Math.round(percentage));
+    progressContainer.setAttribute('aria-valuenow', Math.round(Math.min(percentage, 100)));
+    
+    // ✨ NEW: Dynamic color gradient based on percentage
+    updateProgressBarColor(percentage);
+}
+
+/**
+ * ✨ NEW FEATURE: Dynamic Progress Bar Color
+ * Changes color based on heating progress:
+ * 0-33%: Blue (cold/starting)
+ * 34-66%: Orange (warming)
+ * 67-99%: Orange-red (nearly ready)
+ * 100%: Green (ready)
+ * >100%: Red (overheating)
+ */
+function updateProgressBarColor(percentage) {
+    const bar = elements.progressBar;
+    
+    // Remove all color classes
+    bar.classList.remove('cold', 'warming', 'nearly-ready', 'ready', 'overheat');
+    
+    if (percentage > 100) {
+        bar.classList.add('overheat');
+    } else if (percentage >= 100) {
+        bar.classList.add('ready');
+    } else if (percentage >= 67) {
+        bar.classList.add('nearly-ready');
+        // Add pulse animation near target
+        if (percentage >= 95) {
+            bar.classList.add('pulse-near-target');
+        }
+    } else if (percentage >= 34) {
+        bar.classList.add('warming');
+    } else {
+        bar.classList.add('cold');
+    }
+}
+
+/**
+ * ✨ NEW FEATURE: Time Estimate Display
+ * Calculates estimated time to reach target based on current heating rate
+ */
+function updateTimeEstimate() {
+    if (!elements.timeEstimate) return;
+    
+    // Don't show estimate if already at target
+    if (appState.isStabilized || appState.targetReached) {
+        elements.timeEstimate.textContent = '';
+        return;
+    }
+    
+    // Calculate elapsed time and heating rate
+    const elapsedSeconds = (Date.now() - appState.heatingStartTime) / 1000;
+    
+    // Wait at least 3 seconds before showing estimate
+    if (elapsedSeconds < 3) {
+        elements.timeEstimate.textContent = 'Calculating...';
+        return;
+    }
+    
+    // Calculate actual heating rate
+    const tempIncrease = appState.currentTemp - appState.heatingStartTemp;
+    const heatingRate = tempIncrease / elapsedSeconds;
+    
+    // Calculate remaining temperature and time
+    const remainingTemp = appState.targetTemp - appState.currentTemp;
+    const estimatedSeconds = remainingTemp / heatingRate;
+    
+    // Format time display
+    if (estimatedSeconds < 30) {
+        elements.timeEstimate.textContent = 'Almost ready! (~' + Math.ceil(estimatedSeconds) + ' sec)';
+    } else if (estimatedSeconds < 60) {
+        elements.timeEstimate.textContent = 'Est. time: ~' + Math.ceil(estimatedSeconds) + ' seconds';
+    } else {
+        const minutes = Math.floor(estimatedSeconds / 60);
+        const seconds = Math.ceil(estimatedSeconds % 60);
+        elements.timeEstimate.textContent = `Est. time: ${minutes} min ${seconds} sec`;
+    }
 }
 
 // ==========================================
@@ -441,28 +587,54 @@ function updateProgressBar() {
 function checkOverheating() {
     const threshold = appState.overheatThreshold[appState.unit];
     const isOverheating = appState.currentTemp > (appState.targetTemp + threshold);
+    const unit = appState.unit === 'F' ? '°F' : '°C';
     
-    if (isOverheating && elements.overheatWarning.classList.contains('hidden')) {
-        elements.overheatWarning.classList.remove('hidden');
-        console.warn('Warning: Temperature exceeded target!');
-    } else if (!isOverheating && !elements.overheatWarning.classList.contains('hidden')) {
-        elements.overheatWarning.classList.add('hidden');
+    if (isOverheating) {
+        // Show overheat warning
+        if (elements.overheatWarning.classList.contains('hidden')) {
+            elements.overheatWarning.classList.remove('hidden');
+            console.warn('Warning: Temperature exceeded target!');
+        }
+        
+        // Update warning message with current temperature
+        const overheatAmount = Math.round(appState.currentTemp - appState.targetTemp);
+        elements.overheatWarning.textContent = 
+            `⚠️ WARNING: Overheating! Current: ${Math.round(appState.currentTemp)}${unit} (Target: ${Math.round(appState.targetTemp)}${unit}, +${overheatAmount}${unit})`;
+        
+        // Update status to show overheating
+        updateStatus('overheating');
+        
+        // Add visual warning to screen
+        elements.monitoringScreen.classList.add('overheating');
+    } else {
+        // Hide overheat warning
+        if (!elements.overheatWarning.classList.contains('hidden')) {
+            elements.overheatWarning.classList.add('hidden');
+        }
+        elements.monitoringScreen.classList.remove('overheating');
     }
 }
 
 function updateStatus(status) {
     const statusText = elements.statusIndicator.querySelector('.status-text');
+    const unit = appState.unit === 'F' ? '°F' : '°C';
     
     if (status === 'heating') {
-        statusText.textContent = 'Heating...';
-        elements.statusIndicator.classList.remove('ready');
+        const percentage = Math.round(((appState.currentTemp - appState.heatingStartTemp) / (appState.targetTemp - appState.heatingStartTemp)) * 100);
+        statusText.textContent = `Heating to ${Math.round(appState.targetTemp)}${unit}... ${Math.min(percentage, 100)}%`;
+        elements.statusIndicator.classList.remove('ready', 'overheating');
         elements.currentTempDisplay.classList.remove('ready');
         elements.progressBar.classList.remove('ready');
     } else if (status === 'ready') {
-        statusText.textContent = '✓ Target Reached!';
+        statusText.textContent = `✓ Target reached! Pan ready at ${Math.round(appState.targetTemp)}${unit}`;
         elements.statusIndicator.classList.add('ready');
+        elements.statusIndicator.classList.remove('overheating');
         elements.currentTempDisplay.classList.add('ready');
         elements.progressBar.classList.add('ready');
+    } else if (status === 'overheating') {
+        statusText.textContent = `⚠️ WARNING: Overheating!`;
+        elements.statusIndicator.classList.remove('ready');
+        elements.statusIndicator.classList.add('overheating');
     }
 }
 
@@ -471,14 +643,31 @@ function updateStatus(status) {
 // ==========================================
 function targetReached() {
     appState.targetReached = true;
+    appState.isStabilized = true;
     
     // Update UI to success state
     updateStatus('ready');
     
+    // Update progress bar to 100% and green
+    updateProgressBar();
+    
+    // Hide time estimate
+    if (elements.timeEstimate) {
+        elements.timeEstimate.textContent = '';
+    }
+    
+    // ✨ NEW: Show "Test Overheat" button when target reached
+    if (elements.testOverheatBtn) {
+        elements.testOverheatBtn.classList.remove('hidden');
+    }
+    
     // Play notification (visual + potential sound)
     notifyUser();
     
-    console.log('Target temperature reached!');
+    // Keep interval running for temperature stabilization (small fluctuations)
+    // Don't call stopHeating() - we want to keep simulating stabilized temp
+    
+    console.log('Target temperature reached! Temperature will now stabilize.');
 }
 
 function stopHeating() {
@@ -488,6 +677,29 @@ function stopHeating() {
         clearInterval(appState.heatingInterval);
         appState.heatingInterval = null;
     }
+}
+
+/**
+ * ✨ NEW FEATURE: Manual Overheat Test
+ * Allows users to test the overheat warning after target is reached
+ */
+function startOverheatTest() {
+    appState.isOverheating = true;
+    appState.isStabilized = false;
+    
+    // Hide the test button
+    if (elements.testOverheatBtn) {
+        elements.testOverheatBtn.classList.add('hidden');
+    }
+    
+    // Restart the heating interval if not running
+    if (!appState.heatingInterval) {
+        appState.heatingInterval = setInterval(() => {
+            simulateTemperatureIncrease();
+        }, appState.UPDATE_INTERVAL);
+    }
+    
+    console.log('Overheat test initiated - temperature will continue rising');
 }
 
 // ==========================================
@@ -606,9 +818,22 @@ function handleCancel() {
     appState.currentTemp = appState.unit === 'F' ? 77 : 25;
     appState.targetTemp = null;
     appState.targetReached = false;
+    appState.isStabilized = false;
+    appState.isOverheating = false;
     
     // Hide overheating warning
     elements.overheatWarning.classList.add('hidden');
+    elements.monitoringScreen.classList.remove('overheating');
+    
+    // Hide test overheat button
+    if (elements.testOverheatBtn) {
+        elements.testOverheatBtn.classList.add('hidden');
+    }
+    
+    // Clear time estimate
+    if (elements.timeEstimate) {
+        elements.timeEstimate.textContent = '';
+    }
     
     // Clear localStorage
     localStorage.removeItem('smartPanTargetTemp');

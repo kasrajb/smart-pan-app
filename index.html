@@ -135,12 +135,23 @@
                 <div class="progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                     <div class="progress-label">Progress to Target</div>
                     <div class="progress-bar-wrapper">
-                        <div id="progress-bar" class="progress-bar"></div>
+                        <div id="progress-bar" class="progress-bar cold"></div>
                     </div>
                     <div class="progress-percentage">
                         <span id="progress-text">0%</span>
                     </div>
+                    <!-- ✨ NEW: Time Estimate Display -->
+                    <div id="time-estimate" class="time-estimate" aria-live="polite"></div>
                 </div>
+                
+                <!-- ✨ NEW: Test Overheat Button (appears only when target reached) -->
+                <button 
+                    id="test-overheat-btn" 
+                    class="test-overheat-btn hidden"
+                    aria-label="Test overheat warning system"
+                >
+                    Test Overheat Warning
+                </button>
 
                 <!-- Control Buttons -->
                 <div class="control-buttons">

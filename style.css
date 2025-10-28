@@ -436,9 +436,29 @@ body {
     animation: none;
 }
 
+.status-indicator.overheating {
+    background: var(--color-danger);
+    animation: warningPulse 1s ease-in-out infinite;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.7; }
+}
+
+/* ✨ ENHANCED: Overheating Screen State */
+.monitoring-screen.overheating {
+    background: linear-gradient(135deg, rgba(192, 57, 43, 0.1) 0%, rgba(231, 76, 60, 0.1) 100%);
+    animation: screenOverheat 2s ease-in-out infinite;
+}
+
+@keyframes screenOverheat {
+    0%, 100% {
+        background: linear-gradient(135deg, rgba(192, 57, 43, 0.1) 0%, rgba(231, 76, 60, 0.1) 100%);
+    }
+    50% {
+        background: linear-gradient(135deg, rgba(192, 57, 43, 0.2) 0%, rgba(231, 76, 60, 0.2) 100%);
+    }
 }
 
 .status-text {
@@ -564,34 +584,124 @@ body {
 
 .progress-bar-wrapper {
     width: 100%;
-    height: 24px;
+    height: 32px;
     background: var(--color-background);
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: var(--spacing-sm);
 }
 
+/* ✨ ENHANCED: Dynamic Progress Bar with Color Gradients */
 .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--color-heating) 0%, var(--color-heating-light) 100%);
-    border-radius: 12px;
+    border-radius: 16px;
     width: 0%;
-    transition: width 0.5s ease, background 0.5s ease;
+    transition: width 0.5s ease, background 0.5s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+
+/* Progress Bar Color States */
+.progress-bar.cold {
+    background: linear-gradient(90deg, #3498db 0%, #5dade2 100%);
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+
+.progress-bar.warming {
+    background: linear-gradient(90deg, #f39c12 0%, #e67e22 100%);
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.4);
+}
+
+.progress-bar.nearly-ready {
+    background: linear-gradient(90deg, #e67e22 0%, #e74c3c 100%);
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
 }
 
 .progress-bar.ready {
-    background: linear-gradient(90deg, var(--color-ready) 0%, var(--color-ready-light) 100%);
+    background: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
+    box-shadow: 0 0 25px rgba(39, 174, 96, 0.6);
+}
+
+.progress-bar.overheat {
+    background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+    box-shadow: 0 0 30px rgba(192, 57, 43, 0.7);
+    animation: overheatPulse 1s ease-in-out infinite;
+}
+
+/* Pulse animation near target (95%+) */
+.progress-bar.pulse-near-target {
+    animation: nearTargetPulse 2s ease-in-out infinite;
+}
+
+@keyframes nearTargetPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(231, 76, 60, 0.8);
+    }
+}
+
+@keyframes overheatPulse {
+    0%, 100% {
+        box-shadow: 0 0 30px rgba(192, 57, 43, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 45px rgba(192, 57, 43, 1);
+    }
 }
 
 .progress-percentage {
     text-align: center;
+    margin-top: var(--spacing-xs);
 }
 
 #progress-text {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
     color: var(--color-text-primary);
+}
+
+/* ✨ NEW: Time Estimate Display */
+.time-estimate {
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    min-height: 24px;
+}
+
+/* ✨ NEW: Test Overheat Button */
+.test-overheat-btn {
+    width: 100%;
+    padding: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #e67e22 0%, #e74c3c 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-small);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.test-overheat-btn:hover {
+    background: linear-gradient(135deg, #d35400 0%, #c0392b 100%);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.test-overheat-btn:active {
+    transform: translateY(0);
+}
+
+.test-overheat-btn.hidden {
+    display: none;
 }
 
 /* Control Buttons */
