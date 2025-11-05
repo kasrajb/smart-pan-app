@@ -12,7 +12,7 @@ Added configuration constants at the top of `app.js`:
 ```javascript
 const ADAFRUIT_CONFIG = {
     username: 'kasrajb',
-    apiKey: 'aio_qqGg500P3TBnmMBTvE49aPiBjHdY',
+    apiKey: 'aio_***YOUR_API_KEY***',  // Configured in app.js
     feedName: 'temperature',
     baseURL: 'https://io.adafruit.com/api/v2',
     updateInterval: 500  // Check for new data every 500ms
@@ -53,7 +53,7 @@ const ADAFRUIT_CONFIG = {
 - **Returns**: `Promise<boolean>` - true if successful
 - **API Endpoint**: `POST https://io.adafruit.com/api/v2/kasrajb/feeds/temperature/data`
 - **Headers**: 
-  - `X-AIO-Key: aio_qqGg500P3TBnmMBTvE49aPiBjHdY`
+  - `X-AIO-Key: [configured in app.js]`
   - `Content-Type: application/json`
 - **Body**: `{"value": temperature}`
 
@@ -340,7 +340,7 @@ SmartPanApp.adafruitConfig
 ```javascript
 {
     username: "kasrajb",
-    apiKey: "aio_qqGg500P3TBnmMBTvE49aPiBjHdY",
+    apiKey: "aio_***YOUR_API_KEY***",  // Hidden for security
     feedName: "temperature",
     baseURL: "https://io.adafruit.com/api/v2",
     updateInterval: 500
@@ -388,7 +388,7 @@ console.log('Heating from', SmartPanApp.appState.currentTemp, 'to', SmartPanApp.
 #### GET Latest Temperature
 **Endpoint:**
 ```
-GET https://io.adafruit.com/api/v2/kasrajb/feeds/temperature/data/last?X-AIO-Key=aio_qqGg500P3TBnmMBTvE49aPiBjHdY
+GET https://io.adafruit.com/api/v2/kasrajb/feeds/temperature/data/last?X-AIO-Key=[YOUR_API_KEY]
 ```
 
 **Response Format:**
@@ -417,7 +417,7 @@ POST https://io.adafruit.com/api/v2/kasrajb/feeds/temperature/data
 
 **Headers:**
 ```
-X-AIO-Key: aio_qqGg500P3TBnmMBTvE49aPiBjHdY
+X-AIO-Key: [YOUR_API_KEY]
 Content-Type: application/json
 ```
 
@@ -480,7 +480,7 @@ import urequests
 import ujson
 
 ADAFRUIT_IO_USERNAME = "kasrajb"
-ADAFRUIT_IO_KEY = "aio_qqGg500P3TBnmMBTvE49aPiBjHdY"
+ADAFRUIT_IO_KEY = "aio_***YOUR_API_KEY***"  # Your actual API key here
 FEED_NAME = "temperature"
 
 def send_temperature(temp_celsius):
