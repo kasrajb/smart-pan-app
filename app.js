@@ -3,6 +3,21 @@
    ========================================== */
 
 // ==========================================
+// ADAFRUIT IO CONFIGURATION
+// ==========================================
+const ADAFRUIT_CONFIG = {
+    username: 'kasrajb',
+    apiKey: 'aio_qqGg500P3TBnmMBTvE49aPiBjHdY',
+    feedName: 'temperature',
+    baseURL: 'https://io.adafruit.com/api/v2',
+    updateInterval: 500  // Check for new data every 500ms (0.5 seconds)
+};
+
+// Connection status tracking
+let adafruitConnected = false;
+let useSimulationMode = false;
+
+// ==========================================
 // APPLICATION STATE
 // ==========================================
 const appState = {
@@ -12,9 +27,9 @@ const appState = {
     targetReached: false,      // Whether target temperature has been reached
     isStabilized: false,       // Whether temperature is stabilized at target
     isOverheating: false,      // Whether in manual overheat test mode
-    heatingInterval: null,     // Reference to the heating simulation interval
-    HEATING_RATE: 12.6,        // Temperature increase per second (12.6°F = 7°C)
-    UPDATE_INTERVAL: 1000,     // Update frequency in milliseconds
+    heatingInterval: null,     // Reference to the heating/monitoring interval
+    HEATING_RATE: 12.6,        // Temperature increase per second (12.6°F = 7°C) - simulation only
+    UPDATE_INTERVAL: 500,      // Update frequency in milliseconds (500ms for Adafruit, 1000ms for simulation)
     
     // Time tracking for estimates
     heatingStartTime: null,    // When heating began
@@ -85,9 +100,109 @@ const elements = {
 };
 
 // ==========================================
+// ADAFRUIT IO FUNCTIONS
+// ==========================================
+
+/**
+ * Test connection to Adafruit IO
+ * @returns {Promise<boolean>} True if connected, false otherwise
+ */
+async function testAdafruitConnection() {
+    try {
+        const url = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feedName}/data/last?X-AIO-Key=${ADAFRUIT_CONFIG.apiKey}`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            adafruitConnected = true;
+            useSimulationMode = false;
+            console.log('✅ Adafruit IO Connected -', new Date().toLocaleTimeString());
+            return true;
+        } else {
+            adafruitConnected = false;
+            useSimulationMode = true;
+            console.log('ℹ️ Using Simulation Mode -', new Date().toLocaleTimeString());
+            return false;
+        }
+    } catch (error) {
+        adafruitConnected = false;
+        useSimulationMode = true;
+        console.warn('ℹ️ Adafruit IO connection failed, using simulation mode:', error.message);
+        return false;
+    }
+}
+
+/**
+ * Get latest temperature reading from Adafruit IO
+ * @returns {Promise<number|null>} Temperature value or null if failed
+ */
+async function getTempFromAdafruit() {
+    if (!adafruitConnected) return null;
+    
+    try {
+        const url = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feedName}/data/last?X-AIO-Key=${ADAFRUIT_CONFIG.apiKey}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            console.warn('Failed to fetch temperature from Adafruit IO');
+            return null;
+        }
+        
+        const data = await response.json();
+        const temperature = parseFloat(data.value);
+        
+        if (isNaN(temperature)) {
+            console.warn('Invalid temperature value received:', data.value);
+            return null;
+        }
+        
+        return temperature;
+    } catch (error) {
+        console.warn('Error fetching from Adafruit IO:', error.message);
+        // Automatically fall back to simulation if Adafruit fails
+        if (adafruitConnected) {
+            adafruitConnected = false;
+            useSimulationMode = true;
+            console.warn('Switching to simulation mode due to connection issues');
+        }
+        return null;
+    }
+}
+
+/**
+ * Send temperature value to Adafruit IO
+ * @param {number} temperature - Temperature value to send
+ * @returns {Promise<boolean>} True if successful, false otherwise
+ */
+async function sendTempToAdafruit(temperature) {
+    if (!adafruitConnected) return false;
+    
+    try {
+        const url = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feedName}/data`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-AIO-Key': ADAFRUIT_CONFIG.apiKey,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ value: temperature })
+        });
+        
+        if (!response.ok) {
+            console.warn('Failed to send temperature to Adafruit IO');
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        console.warn('Error sending to Adafruit IO:', error.message);
+        return false;
+    }
+}
+
+// ==========================================
 // INITIALIZATION - Run on Page Load
 // ==========================================
-function init() {
+async function init() {
     // Load saved unit preference (default to Fahrenheit)
     const savedUnit = localStorage.getItem('smartPanUnit') || 'F';
     appState.unit = savedUnit;
@@ -106,7 +221,12 @@ function init() {
     // Attach event listeners
     attachEventListeners();
     
-    console.log('Smart Pan App Initialized - Unit:', appState.unit);
+    // Test Adafruit IO connection
+    await testAdafruitConnection();
+    
+    // Log initialization status
+    const mode = adafruitConnected ? 'Adafruit IO (Live Data)' : 'Simulation Mode';
+    console.log(`Smart Pan App Initialized - Unit: ${appState.unit} | Mode: ${mode}`);
 }
 
 // ==========================================
@@ -373,9 +493,7 @@ function handleStartHeating() {
 }
 
 // ==========================================
-// HEATING SIMULATION
-// This simulates temperature increase
-// FUTURE: Replace with actual hardware sensor data
+// TEMPERATURE MONITORING - Real Data or Simulation
 // ==========================================
 function startHeatingSimulation() {
     appState.isHeating = true;
@@ -390,31 +508,50 @@ function startHeatingSimulation() {
     // Update status
     updateStatus('heating');
     
+    // Log which mode we're starting in
+    const mode = adafruitConnected ? 'Adafruit IO (Real Data)' : 'Simulation Mode';
+    console.log(`Started heating - Mode: ${mode} - Target: ${appState.targetTemp}°${appState.unit}`);
+    
     // Clear any existing interval
     if (appState.heatingInterval) {
         clearInterval(appState.heatingInterval);
     }
     
-    // Start temperature increase interval
+    // Start temperature update loop (works with both Adafruit and simulation)
+    // Use 500ms interval for smooth real-time updates from Adafruit
+    const updateInterval = adafruitConnected ? ADAFRUIT_CONFIG.updateInterval : 1000;
     appState.heatingInterval = setInterval(() => {
-        simulateTemperatureIncrease();
-    }, appState.UPDATE_INTERVAL);
+        updateTemperatureLoop();
+    }, updateInterval);
 }
 
 /**
- * HARDWARE INTEGRATION POINT:
- * This function simulates temperature increase.
- * When connecting to actual hardware, replace this with:
- * 
- * function receiveRealTemperature(sensorData) {
- *     appState.currentTemp = sensorData.temperature;
- *     updateTemperatureDisplay();
- *     checkTargetReached();
- * }
+ * UPDATED TEMPERATURE LOOP
+ * This function handles temperature updates from either Adafruit IO or simulation
  */
-function simulateTemperatureIncrease() {
-    // Continuously increase temperature - will trigger overheat warning automatically
-    appState.currentTemp += appState.HEATING_RATE;
+async function updateTemperatureLoop() {
+    // Try to get real temperature from Adafruit IO
+    if (adafruitConnected) {
+        const adafruitTemp = await getTempFromAdafruit();
+        
+        if (adafruitTemp !== null) {
+            // Received real temperature from Adafruit
+            // Assume Pico sends Celsius, convert if user prefers Fahrenheit
+            appState.currentTemp = appState.unit === 'F' 
+                ? celsiusToFahrenheit(adafruitTemp) 
+                : adafruitTemp;
+            
+            // Send acknowledgment back to Adafruit (log the reading)
+            sendTempToAdafruit(adafruitTemp);
+        } else {
+            // Adafruit failed, fall back to simulation
+            useSimulationMode = true;
+            simulateTemperatureIncrease();
+        }
+    } else {
+        // Use simulation mode
+        simulateTemperatureIncrease();
+    }
     
     // Check if target reached (for notification only)
     if (!appState.targetReached && appState.currentTemp >= appState.targetTemp) {
@@ -430,6 +567,15 @@ function simulateTemperatureIncrease() {
     updateTemperatureDisplay();
     updateProgressBar();
     updateTimeEstimate();
+}
+
+/**
+ * SIMULATION MODE FUNCTION
+ * Fallback temperature simulation when Adafruit IO is unavailable
+ */
+function simulateTemperatureIncrease() {
+    // Continuously increase temperature - will trigger overheat warning automatically
+    appState.currentTemp += appState.HEATING_RATE;
 }
 
 // ==========================================
@@ -823,5 +969,64 @@ if (document.readyState === 'loading') {
 window.SmartPanApp = {
     validateTemperature,
     appState,
-    // Add more functions as needed for testing
+    // Adafruit IO functions for testing
+    testAdafruitConnection,
+    getTempFromAdafruit,
+    sendTempToAdafruit,
+    adafruitConfig: ADAFRUIT_CONFIG,
+    getConnectionStatus: () => ({
+        connected: adafruitConnected,
+        simulationMode: useSimulationMode,
+        mode: adafruitConnected ? 'Adafruit IO' : 'Simulation'
+    })
 };
+
+// ==========================================
+// CONSOLE TEST COMMANDS
+// ==========================================
+/*
+COPY AND PASTE THESE COMMANDS INTO BROWSER CONSOLE TO TEST:
+
+// 1. Check connection status
+SmartPanApp.getConnectionStatus()
+
+// 2. Test Adafruit IO connection
+await SmartPanApp.testAdafruitConnection()
+
+// 3. Get latest temperature from Adafruit IO
+await SmartPanApp.getTempFromAdafruit()
+
+// 4. Send test temperature to Adafruit IO (175.5°C)
+await SmartPanApp.sendTempToAdafruit(175.5)
+
+// 5. Check current app state
+SmartPanApp.appState
+
+// 6. Simulate continuous heating (sends temp to Adafruit every second)
+let testTemp = 100;
+const heatingTest = setInterval(async () => {
+    testTemp += 5;
+    console.log(`Sending ${testTemp}°C to Adafruit IO...`);
+    await SmartPanApp.sendTempToAdafruit(testTemp);
+    if (testTemp > 250) clearInterval(heatingTest);
+}, 1000);
+
+// 7. Force reconnection test
+await SmartPanApp.testAdafruitConnection(); console.log(SmartPanApp.getConnectionStatus());
+
+// 8. View Adafruit configuration
+SmartPanApp.adafruitConfig
+
+// 9. Monitor live temperature updates (logs every 2 seconds)
+const monitor = setInterval(async () => {
+    const temp = await SmartPanApp.getTempFromAdafruit();
+    console.log(`Current temp from Adafruit: ${temp}°C - ${new Date().toLocaleTimeString()}`);
+}, 2000);
+// To stop: clearInterval(monitor);
+
+// 10. Test full heating cycle
+SmartPanApp.appState.targetTemp = 180; // Set target
+SmartPanApp.appState.currentTemp = 100; // Set starting temp
+console.log('Heating from', SmartPanApp.appState.currentTemp, 'to', SmartPanApp.appState.targetTemp);
+
+*/
