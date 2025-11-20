@@ -7,7 +7,7 @@
 // ==========================================
 const ADAFRUIT_CONFIG = {
     username: 'kasrajb',
-    apiKey: 'aio_qqGg500P3TBnmMBTvE49aPiBjHdY',
+    apiKey: 'YOUR_API_KEY_HERE',  // Replace with your Adafruit IO API key
     feeds: {
         temperature: 'temperature',           // Real-time sensor data from Raspberry Pi
         targetTemperature: 'target-temperature'  // Target temperature sent to Raspberry Pi
