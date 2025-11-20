@@ -13,7 +13,7 @@ Your Smart Pan web application now uses a **two-feed system** for communication 
 
 **Headers:**
 ```
-X-AIO-Key: aio_qqGg500P3TBnmMBTvE49aPiBjHdY
+X-AIO-Key: [YOUR_ADAFRUIT_IO_API_KEY]
 ```
 
 **Response:**
@@ -35,7 +35,7 @@ X-AIO-Key: aio_qqGg500P3TBnmMBTvE49aPiBjHdY
 
 **Headers:**
 ```
-X-AIO-Key: aio_qqGg500P3TBnmMBTvE49aPiBjHdY
+X-AIO-Key: [YOUR_ADAFRUIT_IO_API_KEY]
 Content-Type: application/json
 ```
 
@@ -59,7 +59,7 @@ import time
 
 # Adafruit IO Configuration
 ADAFRUIT_IO_USERNAME = "kasrajb"
-ADAFRUIT_IO_KEY = "aio_qqGg500P3TBnmMBTvE49aPiBjHdY"
+ADAFRUIT_IO_KEY = "[YOUR_ADAFRUIT_IO_API_KEY]"
 TARGET_FEED = "target-temperature"
 SENSOR_FEED = "temperature"
 BASE_URL = "https://io.adafruit.com/api/v2"
