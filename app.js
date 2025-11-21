@@ -249,6 +249,9 @@ function attachEventListeners() {
             setTimeout(() => {
                 btn.classList.remove('selected');
             }, 300);
+            
+            // Auto-start heating when preset is selected
+            handleStartHeating();
         });
     });
     
