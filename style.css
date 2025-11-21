@@ -148,10 +148,7 @@ body {
     border-radius: 20px;
     padding: 4px;
     backdrop-filter: blur(10px);
-    margin-bottom: var(--spacing-lg);
     width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .unit-btn {
@@ -191,12 +188,15 @@ body {
 }
 
 .input-label {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     font-size: 20px;
     font-weight: 600;
     color: var(--color-text-primary);
     margin-bottom: var(--spacing-md);
     text-align: center;
+    gap: var(--spacing-sm);
 }
 
 /* Temperature Input Field */
