@@ -13,6 +13,52 @@ const UPDATE_INTERVAL = 2500; // 2.5 seconds for Adafruit rate limit (24 updates
 let adafruitConnected = false;
 
 // ==========================================
+// DEBUG CONSOLE - Real-time Log Display
+// ==========================================
+const debugLogs = [];
+const MAX_DEBUG_LOGS = 100;
+
+function addDebugLog(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] ${message}`;
+    
+    debugLogs.push({ message: logEntry, type, timestamp });
+    
+    // Keep only last 100 logs
+    if (debugLogs.length > MAX_DEBUG_LOGS) {
+        debugLogs.shift();
+    }
+    
+    // Update debug popup display
+    updateDebugPopup();
+    
+    // Also log to browser console
+    console.log(logEntry);
+}
+
+function updateDebugPopup() {
+    const container = document.getElementById('debug-log-container');
+    if (!container) return;
+    
+    container.innerHTML = debugLogs
+        .map(log => `<div class="debug-log-entry ${log.type}"><span class="debug-log-timestamp">${log.timestamp}</span>${log.message}</div>`)
+        .join('');
+    
+    // Auto-scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+function clearDebugLogs() {
+    debugLogs.length = 0;
+    updateDebugPopup();
+}
+
+function toggleDebugPopup() {
+    const popup = document.getElementById('debug-popup');
+    popup.classList.toggle('hidden');
+}
+
+// ==========================================
 // APPLICATION STATE
 // ==========================================
 const appState = {
@@ -210,6 +256,9 @@ async function init() {
     // Attach event listeners
     attachEventListeners();
     
+    // Attach debug listeners
+    attachDebugListeners();
+    
     // Test Adafruit IO connection
     await testAdafruitConnection();
     
@@ -268,6 +317,30 @@ function attachEventListeners() {
     // Unit toggle buttons - Monitoring screen
     elements.unitFahrenheitMonitor.addEventListener('click', () => switchUnit('F'));
     elements.unitCelsiusMonitor.addEventListener('click', () => switchUnit('C'));
+}
+
+// ==========================================
+// DEBUG POPUP EVENT LISTENERS
+// ==========================================
+function attachDebugListeners() {
+    const debugToggleBtn = document.getElementById('debug-toggle-btn');
+    const debugCloseBtn = document.getElementById('debug-close-btn');
+    const debugClearBtn = document.getElementById('debug-clear-btn');
+    
+    if (debugToggleBtn) {
+        debugToggleBtn.addEventListener('click', toggleDebugPopup);
+    }
+    
+    if (debugCloseBtn) {
+        debugCloseBtn.addEventListener('click', toggleDebugPopup);
+    }
+    
+    if (debugClearBtn) {
+        debugClearBtn.addEventListener('click', () => {
+            clearDebugLogs();
+            addDebugLog('Debug logs cleared', 'info');
+        });
+    }
 }
 
 // ==========================================
