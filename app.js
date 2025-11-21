@@ -3,22 +3,14 @@
    ========================================== */
 
 // ==========================================
-// ADAFRUIT IO CONFIGURATION
+// NETLIFY FUNCTIONS CONFIGURATION
 // ==========================================
-const ADAFRUIT_CONFIG = {
-    username: 'kasrajb',
-    apiKey: 'YOUR_API_KEY_HERE',  // Replace with your Adafruit IO API key
-    feeds: {
-        temperature: 'temperature',           // Real-time sensor data from Raspberry Pi
-        targetTemperature: 'target-temperature'  // Target temperature sent to Raspberry Pi
-    },
-    baseURL: 'https://io.adafruit.com/api/v2',
-    updateInterval: 500  // Check for new data every 500ms (0.5 seconds)
-};
+// Netlify Functions API endpoint - No API key needed in client code! 🔒
+const API_BASE = '/.netlify/functions';
+const UPDATE_INTERVAL = 2500; // 2.5 seconds for Adafruit rate limit (24 updates/min)
 
 // Connection status tracking
 let adafruitConnected = false;
-let useSimulationMode = false;
 
 // ==========================================
 // APPLICATION STATE
@@ -31,8 +23,7 @@ const appState = {
     isStabilized: false,       // Whether temperature is stabilized at target
     isOverheating: false,      // Whether in manual overheat test mode
     heatingInterval: null,     // Reference to the heating/monitoring interval
-    HEATING_RATE: 12.6,        // Temperature increase per second (12.6°F = 7°C) - simulation only
-    UPDATE_INTERVAL: 500,      // Update frequency in milliseconds (500ms for Adafruit, 1000ms for simulation)
+    UPDATE_INTERVAL: UPDATE_INTERVAL,      // Update frequency in milliseconds (2500ms for Adafruit)
     
     // Time tracking for estimates
     heatingStartTime: null,    // When heating began
@@ -107,48 +98,44 @@ const elements = {
 // ==========================================
 
 /**
- * Test connection to Adafruit IO (tests both temperature feeds)
+ * Test connection to Adafruit IO via Netlify Functions
  * @returns {Promise<boolean>} True if connected, false otherwise
  */
 async function testAdafruitConnection() {
     try {
-        // Test temperature feed (for reading sensor data)
-        const tempUrl = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feeds.temperature}/data/last?X-AIO-Key=${ADAFRUIT_CONFIG.apiKey}`;
-        const tempResponse = await fetch(tempUrl);
+        // Test temperature feed via Netlify Function
+        const response = await fetch(`${API_BASE}/get-temperature`);
 
-        // Test target temperature feed (for sending commands)
-        const targetUrl = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feeds.targetTemperature}/data/last?X-AIO-Key=${ADAFRUIT_CONFIG.apiKey}`;
-        const targetResponse = await fetch(targetUrl);
-
-        if (tempResponse.ok && targetResponse.ok) {
+        if (response.ok) {
             adafruitConnected = true;
-            useSimulationMode = false;
-            console.log('✅ Adafruit IO Connected - Both feeds accessible -', new Date().toLocaleTimeString());
+            console.log('✅ Adafruit IO Connected via Netlify Functions -', new Date().toLocaleTimeString());
             return true;
         } else {
             adafruitConnected = false;
-            useSimulationMode = true;
-            console.log('ℹ️ Using Simulation Mode - Adafruit feeds not accessible -', new Date().toLocaleTimeString());
+            console.warn('⚠️ Cannot connect to Adafruit IO. Check:');
+            console.warn('1. Raspberry Pi is powered on');
+            console.warn('2. Pi is connected to WiFi');
+            console.warn('3. Pi is sending data to Adafruit IO');
+            console.warn('4. Check Adafruit IO dashboard: https://io.adafruit.com/');
             return false;
         }
     } catch (error) {
         adafruitConnected = false;
-        useSimulationMode = true;
-        console.warn('ℹ️ Adafruit IO connection failed, using simulation mode:', error.message);
+        console.warn('⚠️ Adafruit IO connection failed:', error.message);
+        console.warn('Check your internet connection and try again.');
         return false;
     }
 }
 
 /**
- * Get latest temperature reading from Adafruit IO (from Raspberry Pi sensor)
+ * Get latest temperature reading from Adafruit IO via Netlify Function
  * @returns {Promise<number|null>} Temperature value or null if failed
  */
 async function getTempFromAdafruit() {
     if (!adafruitConnected) return null;
     
     try {
-        const url = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feeds.temperature}/data/last?X-AIO-Key=${ADAFRUIT_CONFIG.apiKey}`;
-        const response = await fetch(url);
+        const response = await fetch(`${API_BASE}/get-temperature`);
         
         if (!response.ok) {
             console.warn('Failed to fetch temperature from Adafruit IO');
@@ -165,19 +152,13 @@ async function getTempFromAdafruit() {
         
         return temperature;
     } catch (error) {
-        console.warn('Error fetching from Adafruit IO:', error.message);
-        // Automatically fall back to simulation if Adafruit fails
-        if (adafruitConnected) {
-            adafruitConnected = false;
-            useSimulationMode = true;
-            console.warn('Switching to simulation mode due to connection issues');
-        }
+        console.warn('Adafruit request failed, will retry in 2.5s:', error.message);
         return null;
     }
 }
 
 /**
- * Send target temperature to Raspberry Pi via Adafruit IO
+ * Send target temperature to Raspberry Pi via Netlify Function
  * @param {number} targetTemp - Target temperature in Celsius
  * @returns {Promise<boolean>} True if successful, false otherwise
  */
@@ -185,14 +166,13 @@ async function sendTargetTempToAdafruit(targetTemp) {
     if (!adafruitConnected) return false;
 
     try {
-        const url = `${ADAFRUIT_CONFIG.baseURL}/${ADAFRUIT_CONFIG.username}/feeds/${ADAFRUIT_CONFIG.feeds.targetTemperature}/data`;
-        const response = await fetch(url, {
+        const response = await fetch(`${API_BASE}/send-data`, {
             method: 'POST',
-            headers: {
-                'X-AIO-Key': ADAFRUIT_CONFIG.apiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ value: targetTemp })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                feed: 'target-temperature',
+                value: targetTemp
+            })
         });
 
         if (!response.ok) {
@@ -234,8 +214,8 @@ async function init() {
     await testAdafruitConnection();
     
     // Log initialization status
-    const mode = adafruitConnected ? 'Adafruit IO (Live Data)' : 'Simulation Mode';
-    console.log(`Smart Pan App Initialized - Unit: ${appState.unit} | Mode: ${mode}`);
+    const mode = adafruitConnected ? 'Adafruit IO Connected' : 'Waiting for sensor connection';
+    console.log(`Smart Pan App Initialized - Unit: ${appState.unit} | Status: ${mode}`);
 }
 
 // ==========================================
@@ -346,7 +326,8 @@ function switchUnit(newUnit) {
     }
     
     // Update heating rate
-    appState.HEATING_RATE = newUnit === 'F' ? 12.6 : 7;
+    // Note: No longer needed for simulation, keeping for potential future use
+    // appState.HEATING_RATE = newUnit === 'F' ? 12.6 : 7;
     
     // Update UI
     updateUnitDisplay();
@@ -511,15 +492,15 @@ async function handleStartHeating() {
     switchScreen(elements.inputScreen, elements.monitoringScreen);
 
     // Start temperature monitoring (will read real data from Raspberry Pi)
-    startHeatingSimulation();
+    startTemperatureMonitoring();
 
     console.log(`Heating started. Target: ${appState.targetTemp}°${appState.unit} (${targetTempCelsius}°C sent to Raspberry Pi)`);
 }
 
 // ==========================================
-// TEMPERATURE MONITORING - Real Data or Simulation
+// TEMPERATURE MONITORING - Real Data Only
 // ==========================================
-function startHeatingSimulation() {
+function startTemperatureMonitoring() {
     appState.isHeating = true;
     appState.targetReached = false;
     appState.isStabilized = false;
@@ -532,49 +513,41 @@ function startHeatingSimulation() {
     // Update status
     updateStatus('heating');
     
-    // Log which mode we're starting in
-    const mode = adafruitConnected ? 'Adafruit IO (Real Data)' : 'Simulation Mode';
-    console.log(`Started heating - Mode: ${mode} - Target: ${appState.targetTemp}°${appState.unit}`);
+    // Log heating start
+    console.log(`Started heating - Target: ${appState.targetTemp}°${appState.unit}`);
     
     // Clear any existing interval
     if (appState.heatingInterval) {
         clearInterval(appState.heatingInterval);
     }
     
-    // Start temperature update loop (works with both Adafruit and simulation)
-    // Use 500ms interval for smooth real-time updates from Adafruit
-    const updateInterval = adafruitConnected ? ADAFRUIT_CONFIG.updateInterval : 1000;
+    // Start temperature update loop (real data only from Adafruit)
+    // Use 2.5 second interval for Adafruit rate limit compliance
     appState.heatingInterval = setInterval(() => {
         updateTemperatureLoop();
-    }, updateInterval);
+    }, UPDATE_INTERVAL);
 }
 
 /**
- * UPDATED TEMPERATURE LOOP
- * This function handles temperature updates from either Adafruit IO or simulation
+ * TEMPERATURE UPDATE LOOP - Real Data Only
+ * Polls Adafruit IO every 2.5 seconds for real temperature data
  */
 async function updateTemperatureLoop() {
-    // Try to get real temperature from Adafruit IO
-    if (adafruitConnected) {
-        const adafruitTemp = await getTempFromAdafruit();
+    // Get real temperature from Adafruit IO
+    const adafruitTemp = await getTempFromAdafruit();
+    
+    if (adafruitTemp !== null) {
+        // Received real temperature from Adafruit
+        // Assume Pico sends Celsius, convert if user prefers Fahrenheit
+        appState.currentTemp = appState.unit === 'F' 
+            ? celsiusToFahrenheit(adafruitTemp) 
+            : adafruitTemp;
         
-        if (adafruitTemp !== null) {
-            // Received real temperature from Adafruit
-            // Assume Pico sends Celsius, convert if user prefers Fahrenheit
-            appState.currentTemp = appState.unit === 'F' 
-                ? celsiusToFahrenheit(adafruitTemp) 
-                : adafruitTemp;
-            
-            // Send acknowledgment back to Adafruit (log the reading)
-            sendTempToAdafruit(adafruitTemp);
-        } else {
-            // Adafruit failed, fall back to simulation
-            useSimulationMode = true;
-            simulateTemperatureIncrease();
-        }
+        console.log(`Real temp: ${adafruitTemp}°C (${Math.round(appState.currentTemp)}°${appState.unit})`);
     } else {
-        // Use simulation mode
-        simulateTemperatureIncrease();
+        // Adafruit request failed, keep last known temperature
+        console.warn('Waiting for sensor data...');
+        // Don't update currentTemp, keep displaying last known value
     }
     
     // Check if target reached (for notification only)
@@ -591,15 +564,6 @@ async function updateTemperatureLoop() {
     updateTemperatureDisplay();
     updateProgressBar();
     updateTimeEstimate();
-}
-
-/**
- * SIMULATION MODE FUNCTION
- * Fallback temperature simulation when Adafruit IO is unavailable
- */
-function simulateTemperatureIncrease() {
-    // Continuously increase temperature - will trigger overheat warning automatically
-    appState.currentTemp += appState.HEATING_RATE;
 }
 
 // ==========================================
@@ -993,16 +957,14 @@ if (document.readyState === 'loading') {
 window.SmartPanApp = {
     validateTemperature,
     appState,
-    // Adafruit IO functions for testing
+    // Adafruit IO functions for testing (via Netlify Functions)
     testAdafruitConnection,
     getTempFromAdafruit,
     sendTempToAdafruit,
     sendTargetTempToAdafruit,
-    adafruitConfig: ADAFRUIT_CONFIG,
     getConnectionStatus: () => ({
         connected: adafruitConnected,
-        simulationMode: useSimulationMode,
-        mode: adafruitConnected ? 'Adafruit IO' : 'Simulation'
+        mode: adafruitConnected ? 'Adafruit IO Connected (via Netlify)' : 'Waiting for sensor'
     })
 };
 
@@ -1030,36 +992,24 @@ await SmartPanApp.sendTempToAdafruit(175.5)
 // 6. Check current app state
 SmartPanApp.appState
 
-// 7. Simulate continuous heating (sends temp to Adafruit every second)
-let testTemp = 100;
-const heatingTest = setInterval(async () => {
-    testTemp += 5;
-    console.log(`Sending ${testTemp}°C to Adafruit IO...`);
-    await SmartPanApp.sendTempToAdafruit(testTemp);
-    if (testTemp > 250) clearInterval(heatingTest);
-}, 1000);
-
-// 8. Force reconnection test
-await SmartPanApp.testAdafruitConnection(); console.log(SmartPanApp.getConnectionStatus());
-
-// 9. View Adafruit configuration
-SmartPanApp.adafruitConfig
-
-// 10. Monitor live temperature updates from Raspberry Pi (logs every 2 seconds)
+// 7. Monitor live temperature updates from Raspberry Pi (logs every 2.5 seconds)
 const monitor = setInterval(async () => {
     const temp = await SmartPanApp.getTempFromAdafruit();
     console.log(`Current temp from Raspberry Pi: ${temp}°C - ${new Date().toLocaleTimeString()}`);
-}, 2000);
+}, 2500);
 // To stop: clearInterval(monitor);
 
-// 11. Test full workflow: Set target and monitor
+// 8. Test full workflow: Set target and monitor
 // Step 1: Send target temperature to Raspberry Pi
 await SmartPanApp.sendTargetTempToAdafruit(200); // Tell Raspberry Pi to heat to 200°C
 // Step 2: Monitor real-time temperature from Raspberry Pi
 const monitorWorkflow = setInterval(async () => {
     const temp = await SmartPanApp.getTempFromAdafruit();
     console.log(`Raspberry Pi temp: ${temp}°C (target: 200°C) - ${new Date().toLocaleTimeString()}`);
-}, 1000);
+}, 2500);
 // To stop monitoring: clearInterval(monitorWorkflow);
+
+// 9. View Adafruit configuration
+SmartPanApp.adafruitConfig
 
 */

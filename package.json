@@ -1,0 +1,8 @@
+{
+  "name": "smart-pan-app",
+  "version": "1.0.0",
+  "description": "Smart Pan temperature monitoring system",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
