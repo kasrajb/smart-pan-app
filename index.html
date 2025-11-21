@@ -19,15 +19,15 @@
             <header class="app-header">
                 <h1 id="input-heading">Smart Pan</h1>
                 <p class="subtitle">Precision Temperature Control</p>
-                
+            </header>
+
+            <div class="input-content">
                 <!-- Unit Toggle -->
                 <div class="unit-toggle" role="switch" aria-checked="true" aria-label="Temperature unit toggle">
                     <button id="unit-fahrenheit" class="unit-btn active" aria-label="Switch to Fahrenheit">°F</button>
                     <button id="unit-celsius" class="unit-btn" aria-label="Switch to Celsius">°C</button>
                 </div>
-            </header>
-
-            <div class="input-content">
+                
                 <label for="temperature-input" class="input-label">Set Target Temperature</label>
                 
                 <!-- Temperature Input Field -->
@@ -97,15 +97,15 @@
         <section id="monitoring-screen" class="screen" aria-labelledby="monitoring-heading">
             <header class="app-header">
                 <h1 id="monitoring-heading">Smart Pan</h1>
-                
+            </header>
+
+            <div class="monitoring-content">
                 <!-- Unit Toggle -->
                 <div class="unit-toggle" role="switch" aria-checked="true" aria-label="Temperature unit toggle">
                     <button id="unit-fahrenheit-monitor" class="unit-btn active" aria-label="Switch to Fahrenheit">°F</button>
                     <button id="unit-celsius-monitor" class="unit-btn" aria-label="Switch to Celsius">°C</button>
                 </div>
-            </header>
-
-            <div class="monitoring-content">
+                
                 <!-- Status Indicator -->
                 <div id="status-indicator" class="status-indicator" role="status" aria-live="polite">
                     <span class="status-text">Heating...</span>
