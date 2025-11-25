@@ -18,6 +18,22 @@ exports.handler = async function(event, context) {
         );
         
         if (!response.ok) {
+            // If feed doesn't exist (404), return default target temperature
+            if (response.status === 404) {
+                console.log('Target temperature feed not found, returning default: 180°C');
+                return {
+                    statusCode: 200,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    },
+                    body: JSON.stringify({
+                        value: 180,
+                        timestamp: new Date().toISOString(),
+                        default: true
+                    })
+                };
+            }
             throw new Error(`Adafruit API error: ${response.status}`);
         }
         
