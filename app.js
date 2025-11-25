@@ -154,21 +154,16 @@ async function testAdafruitConnection() {
 
         if (response.ok) {
             adafruitConnected = true;
-            console.log('✅ Adafruit IO Connected via Netlify Functions -', new Date().toLocaleTimeString());
+            addDebugLog('✅ Adafruit IO Connected via Netlify Functions', 'success');
             return true;
         } else {
             adafruitConnected = false;
-            console.warn('⚠️ Cannot connect to Adafruit IO. Check:');
-            console.warn('1. Raspberry Pi is powered on');
-            console.warn('2. Pi is connected to WiFi');
-            console.warn('3. Pi is sending data to Adafruit IO');
-            console.warn('4. Check Adafruit IO dashboard: https://io.adafruit.com/');
+            addDebugLog('⚠️ Cannot connect to Adafruit IO', 'warn');
             return false;
         }
     } catch (error) {
         adafruitConnected = false;
-        console.warn('⚠️ Adafruit IO connection failed:', error.message);
-        console.warn('Check your internet connection and try again.');
+        addDebugLog('⚠️ Adafruit IO connection failed: ' + error.message, 'error');
         return false;
     }
 }
@@ -184,7 +179,7 @@ async function getTempFromAdafruit() {
         const response = await fetch(`${API_BASE}/get-temperature`);
         
         if (!response.ok) {
-            console.warn('Failed to fetch temperature from Adafruit IO');
+            addDebugLog('Failed to fetch temperature from Adafruit IO', 'warn');
             return null;
         }
         
@@ -192,13 +187,13 @@ async function getTempFromAdafruit() {
         const temperature = parseFloat(data.value);
         
         if (isNaN(temperature)) {
-            console.warn('Invalid temperature value received:', data.value);
+            addDebugLog('Invalid temperature value received: ' + data.value, 'error');
             return null;
         }
         
         return temperature;
     } catch (error) {
-        console.warn('Adafruit request failed, will retry in 2.5s:', error.message);
+        addDebugLog('Adafruit request failed: ' + error.message, 'warn');
         return null;
     }
 }
@@ -222,14 +217,14 @@ async function sendTargetTempToAdafruit(targetTemp) {
         });
 
         if (!response.ok) {
-            console.warn('Failed to send target temperature to Adafruit IO');
+            addDebugLog('Failed to send target temperature to Adafruit IO', 'warn');
             return false;
         }
 
-        console.log(`✅ Target temperature ${targetTemp}°C sent to Raspberry Pi`);
+        addDebugLog(`✅ Target temperature ${targetTemp}°C sent to Raspberry Pi`, 'success');
         return true;
     } catch (error) {
-        console.warn('Error sending target temperature to Adafruit IO:', error.message);
+        addDebugLog('Error sending target temperature: ' + error.message, 'error');
         return false;
     }
 }
@@ -264,7 +259,7 @@ async function init() {
     
     // Log initialization status
     const mode = adafruitConnected ? 'Adafruit IO Connected' : 'Waiting for sensor connection';
-    console.log(`Smart Pan App Initialized - Unit: ${appState.unit} | Status: ${mode}`);
+    addDebugLog(`Smart Pan App Initialized - Unit: ${appState.unit} | Status: ${mode}`, 'info');
 }
 
 // ==========================================
@@ -570,7 +565,7 @@ async function handleStartHeating() {
     // Start temperature monitoring (will read real data from Raspberry Pi)
     startTemperatureMonitoring();
 
-    console.log(`Heating started. Target: ${appState.targetTemp}°${appState.unit} (${targetTempCelsius}°C sent to Raspberry Pi)`);
+    addDebugLog(`🔥 Heating started. Target: ${appState.targetTemp}°${appState.unit} (${targetTempCelsius}°C sent to Raspberry Pi)`, 'info');
 }
 
 // ==========================================
@@ -619,16 +614,17 @@ async function updateTemperatureLoop() {
             ? celsiusToFahrenheit(adafruitTemp) 
             : adafruitTemp;
         
-        console.log(`Real temp: ${adafruitTemp}°C (${Math.round(appState.currentTemp)}°${appState.unit})`);
+        addDebugLog(`📊 Real temp: ${adafruitTemp}°C (${Math.round(appState.currentTemp)}°${appState.unit})`, 'info');
     } else {
         // Adafruit request failed, keep last known temperature
-        console.warn('Waiting for sensor data...');
+        addDebugLog('⏳ Waiting for sensor data...', 'warn');
         // Don't update currentTemp, keep displaying last known value
     }
     
     // Check if target reached (for notification only)
     if (!appState.targetReached && appState.currentTemp >= appState.targetTemp) {
         appState.targetReached = true;
+        addDebugLog(`🎉 Target temperature reached!`, 'success');
         notifyUser();
         updateStatus('ready');
     }
@@ -938,6 +934,8 @@ function handleChangeTarget() {
     // Reset target reached flag
     appState.targetReached = false;
     
+    addDebugLog('🔄 Changing target temperature', 'info');
+    
     // Return to input screen
     switchScreen(elements.monitoringScreen, elements.inputScreen);
     
@@ -982,6 +980,8 @@ function handleCancel() {
     
     // Reset input
     elements.temperatureInput.value = '';
+    
+    addDebugLog('❌ Heating cancelled and reset', 'warn');
     
     // Return to input screen
     switchScreen(elements.monitoringScreen, elements.inputScreen);
