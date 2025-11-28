@@ -17,8 +17,23 @@
         <!-- SCREEN 1: Temperature Input Screen -->
         <section id="input-screen" class="screen active" aria-labelledby="input-heading">
             <header class="app-header">
+                <!-- Connection Status Indicator (Phase 1: Static Green) -->
+                <div class="connection-status" 
+                     id="connectionStatus"
+                     role="status"
+                     aria-live="polite"
+                     aria-label="Connection status: Connected">
+                    <div class="connection-indicator connection-connected" aria-hidden="true"></div>
+                    <span class="connection-text">Connected</span>
+                </div>
+                
                 <h1 id="input-heading">Smart Pan</h1>
                 <p class="subtitle">Precision Temperature Control</p>
+                
+                <!-- Help Button -->
+                <div class="header-controls">
+                    <button id="help-btn" class="help-btn" aria-label="Show help and onboarding" title="Help">ℹ️</button>
+                </div>
             </header>
 
             <div class="input-content">
@@ -97,7 +112,22 @@
         <!-- SCREEN 2: Temperature Monitoring Screen -->
         <section id="monitoring-screen" class="screen" aria-labelledby="monitoring-heading">
             <header class="app-header">
+                <!-- Connection Status Indicator (Phase 1: Static Green) -->
+                <div class="connection-status" 
+                     id="connectionStatusMonitor"
+                     role="status"
+                     aria-live="polite"
+                     aria-label="Connection status: Connected">
+                    <div class="connection-indicator connection-connected" aria-hidden="true"></div>
+                    <span class="connection-text">Connected</span>
+                </div>
+                
                 <h1 id="monitoring-heading">Smart Pan</h1>
+                
+                <!-- Mute Button -->
+                <div class="header-controls">
+                    <button id="mute-btn" class="mute-btn" aria-label="Toggle audio alerts" title="Toggle Audio Alerts">🔊</button>
+                </div>
             </header>
 
             <div class="monitoring-content">
@@ -188,6 +218,56 @@
     <button id="debug-toggle-btn" class="debug-toggle-btn" aria-label="Toggle debug console" title="Toggle Debug Log">
         🔧
     </button>
+
+    <!-- ONBOARDING MODAL -->
+    <div id="onboarding-modal" class="onboarding-modal hidden">
+        <div class="onboarding-modal-content">
+            <div class="onboarding-modal-header">
+                <h2>Welcome to Smart Pan! 🍳</h2>
+            </div>
+            <div class="onboarding-modal-body">
+                <p>Smart Pan helps you achieve perfect cooking temperatures every time by monitoring your pan's heat in real-time.</p>
+                
+                <h3>Quick Start Guide:</h3>
+                
+                <h4>📱 Hardware Setup</h4>
+                <ul>
+                    <li>Attach the temperature sensor to the side of your pan</li>
+                    <li>Place the control unit near the stove (visible LED & audible alerts)</li>
+                    <li>Ensure the sensor cable is stored safely in the housing</li>
+                </ul>
+                
+                <h4>🌡️ Set Your Temperature</h4>
+                <ul>
+                    <li>Choose a Quick Select preset (Low/Medium/High) for instant start</li>
+                    <li>Or enter a custom temperature and press "Start Heating"</li>
+                    <li>Toggle between °F and °C next to "Set Target Temperature"</li>
+                </ul>
+                
+                <h4>🎯 Monitor & Cook</h4>
+                <ul>
+                    <li>Watch the color-coded progress bar: Blue → Orange → Green</li>
+                    <li>The app shows estimated time to reach target temperature</li>
+                    <li>When ready, you'll see a ✓ green banner, slow LED blinks, and hear confirmation beeps</li>
+                </ul>
+                
+                <h4>⚠️ Safety Features</h4>
+                <ul>
+                    <li>If temperature exceeds safe levels, you'll get a RED warning with continuous alarm</li>
+                    <li>Turn down the stove immediately if overheating occurs</li>
+                </ul>
+                
+                <p>Happy cooking! 👨‍🍳</p>
+            </div>
+            <div class="onboarding-modal-footer">
+                <label class="dont-show-again">
+                    <input type="checkbox" id="dont-show-again" checked>
+                    Don't show this again
+                </label>
+                <button id="onboarding-close-btn" class="onboarding-close-btn">Got It!</button>
+            </div>
+        </div>
+    </div>
 
     <!-- DEBUG POPUP OVERLAY -->
     <div id="debug-popup" class="debug-popup hidden">

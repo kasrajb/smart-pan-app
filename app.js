@@ -13,49 +13,172 @@ const UPDATE_INTERVAL = 2500; // 2.5 seconds for Adafruit rate limit (24 updates
 let adafruitConnected = false;
 
 // ==========================================
-// DEBUG CONSOLE - Real-time Log Display
+// ONBOARDING MODAL FUNCTIONS
 // ==========================================
-const debugLogs = [];
-const MAX_DEBUG_LOGS = 100;
+function showOnboardingModal() {
+    const modal = document.getElementById('onboarding-modal');
+    modal.classList.remove('hidden');
+}
 
-function addDebugLog(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    const logEntry = `[${timestamp}] ${message}`;
+function hideOnboardingModal() {
+    const modal = document.getElementById('onboarding-modal');
+    const dontShowAgain = document.getElementById('dont-show-again').checked;
     
-    debugLogs.push({ message: logEntry, type, timestamp });
+    modal.classList.add('hidden');
     
-    // Keep only last 100 logs
-    if (debugLogs.length > MAX_DEBUG_LOGS) {
-        debugLogs.shift();
+    if (dontShowAgain) {
+        localStorage.setItem('smartpan_onboarding_seen', 'true');
     }
-    
-    // Update debug popup display
-    updateDebugPopup();
-    
-    // Also log to browser console
-    console.log(logEntry);
 }
 
-function updateDebugPopup() {
-    const container = document.getElementById('debug-log-container');
-    if (!container) return;
-    
-    container.innerHTML = debugLogs
-        .map(log => `<div class="debug-log-entry ${log.type}"><span class="debug-log-timestamp">${log.timestamp}</span>${log.message}</div>`)
-        .join('');
-    
-    // Auto-scroll to bottom
-    container.scrollTop = container.scrollHeight;
+function checkOnboardingStatus() {
+    const hasSeenOnboarding = localStorage.getItem('smartpan_onboarding_seen');
+    if (!hasSeenOnboarding) {
+        showOnboardingModal();
+    }
 }
 
-function clearDebugLogs() {
-    debugLogs.length = 0;
-    updateDebugPopup();
+// ==========================================
+// MUTE BUTTON FUNCTIONS
+// ==========================================
+function toggleMute() {
+    const muteBtn = document.getElementById('mute-btn');
+    const isMuted = localStorage.getItem('smartpan_audio_muted') === 'true';
+    
+    if (isMuted) {
+        // Unmute
+        localStorage.setItem('smartpan_audio_muted', 'false');
+        muteBtn.textContent = '🔊';
+        muteBtn.setAttribute('aria-label', 'Mute audio alerts');
+        addDebugLog('🔊 Audio alerts enabled', 'info');
+    } else {
+        // Mute
+        localStorage.setItem('smartpan_audio_muted', 'true');
+        muteBtn.textContent = '🔇';
+        muteBtn.setAttribute('aria-label', 'Unmute audio alerts');
+        addDebugLog('🔇 Audio alerts muted', 'info');
+    }
+}
+
+function initMuteButton() {
+    const muteBtn = document.getElementById('mute-btn');
+    const isMuted = localStorage.getItem('smartpan_audio_muted') === 'true';
+    
+    if (isMuted) {
+        muteBtn.textContent = '🔇';
+        muteBtn.setAttribute('aria-label', 'Unmute audio alerts');
+    } else {
+        muteBtn.textContent = '🔊';
+        muteBtn.setAttribute('aria-label', 'Mute audio alerts');
+    }
+}
+
+// ==========================================
+// DEBUG LOG FUNCTIONS
+// ==========================================
+function addDebugLog(message, type = 'info') {
+    const debugContainer = document.getElementById('debug-log-container');
+    if (!debugContainer) return;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `debug-log-entry debug-${type}`;
+    logEntry.innerHTML = `<span class="debug-timestamp">[${timestamp}]</span> <span class="debug-message">${message}</span>`;
+    
+    debugContainer.appendChild(logEntry);
+    debugContainer.scrollTop = debugContainer.scrollHeight;
+    
+    // Also log to console
+    console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
 function toggleDebugPopup() {
     const popup = document.getElementById('debug-popup');
-    popup.classList.toggle('hidden');
+    if (popup) {
+        popup.classList.toggle('hidden');
+    }
+}
+
+function clearDebugLogs() {
+    const debugContainer = document.getElementById('debug-log-container');
+    if (debugContainer) {
+        debugContainer.innerHTML = '';
+    }
+}
+
+// ==========================================
+// CONNECTION STATUS INDICATOR (Phase 1: Static)
+// ==========================================
+// Connection Status enum for Phase 2 preparation
+const ConnectionStatus = {
+    CONNECTED: 'connected',
+    UNSTABLE: 'unstable',
+    DISCONNECTED: 'disconnected'
+};
+
+/**
+ * Initialize connection status display
+ * Phase 1: Always shows "Connected" static state
+ * Phase 2: Will integrate with Adafruit IO polling for dynamic status
+ */
+function initConnectionStatus() {
+    const statusElement = document.getElementById('connectionStatus');
+    if (!statusElement) {
+        console.warn('Connection status element not found');
+        return;
+    }
+    
+    // Phase 1: Always show connected
+    updateConnectionStatus(ConnectionStatus.CONNECTED);
+    addDebugLog('🌐 Connection status indicator initialized (Static Green)', 'info');
+    
+    // TODO Phase 2: Integrate with actual API polling
+    // - Monitor fetch() calls to Netlify functions
+    // - Track time since last successful data update (threshold: 5-10 seconds)
+    // - Update status based on:
+    //   - Green: Data received within last 5 seconds
+    //   - Yellow: Data older than 5-10 seconds (unstable)
+    //   - Red: Data older than 10+ seconds or connection error (disconnected)
+    // - Add tooltip showing "Last updated: X seconds ago"
+    // - Update aria-label dynamically when status changes
+}
+
+/**
+ * Update the visual connection status indicator
+ * @param {string} status - Status from ConnectionStatus enum
+ */
+function updateConnectionStatus(status) {
+    // Update both input screen and monitoring screen indicators
+    const indicators = document.querySelectorAll('.connection-indicator');
+    const texts = document.querySelectorAll('.connection-text');
+    const statusElements = document.querySelectorAll('[id^="connectionStatus"]');
+    
+    if (indicators.length === 0 || texts.length === 0) return;
+    
+    // Update all indicators
+    indicators.forEach(indicator => {
+        // Remove all status classes
+        indicator.classList.remove('connection-connected', 'connection-unstable', 'connection-disconnected');
+        // Add current status class
+        indicator.classList.add(`connection-${status}`);
+    });
+    
+    // Update all text labels
+    const statusText = {
+        [ConnectionStatus.CONNECTED]: 'Connected',
+        [ConnectionStatus.UNSTABLE]: 'Unstable',
+        [ConnectionStatus.DISCONNECTED]: 'Disconnected'
+    };
+    
+    const displayText = statusText[status] || 'Unknown';
+    texts.forEach(text => {
+        text.textContent = displayText;
+    });
+    
+    // Update accessibility labels
+    statusElements.forEach(statusElement => {
+        statusElement.setAttribute('aria-label', `Connection status: ${displayText}`);
+    });
 }
 
 // ==========================================
@@ -251,8 +374,20 @@ async function init() {
     // Attach event listeners
     attachEventListeners();
     
+    // Attach onboarding and mute listeners
+    attachOnboardingListeners();
+    
+    // Initialize mute button state
+    initMuteButton();
+    
+    // Check if onboarding should be shown
+    checkOnboardingStatus();
+    
     // Attach debug listeners
     attachDebugListeners();
+    
+    // Initialize connection status indicator
+    initConnectionStatus();
     
     // Test Adafruit IO connection
     await testAdafruitConnection();
@@ -312,6 +447,27 @@ function attachEventListeners() {
     // Unit toggle buttons - Monitoring screen
     elements.unitFahrenheitMonitor.addEventListener('click', () => switchUnit('F'));
     elements.unitCelsiusMonitor.addEventListener('click', () => switchUnit('C'));
+}
+
+// ==========================================
+// ONBOARDING AND MUTE EVENT LISTENERS
+// ==========================================
+function attachOnboardingListeners() {
+    const helpBtn = document.getElementById('help-btn');
+    const onboardingCloseBtn = document.getElementById('onboarding-close-btn');
+    const muteBtn = document.getElementById('mute-btn');
+    
+    if (helpBtn) {
+        helpBtn.addEventListener('click', showOnboardingModal);
+    }
+    
+    if (onboardingCloseBtn) {
+        onboardingCloseBtn.addEventListener('click', hideOnboardingModal);
+    }
+    
+    if (muteBtn) {
+        muteBtn.addEventListener('click', toggleMute);
+    }
 }
 
 // ==========================================

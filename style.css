@@ -124,6 +124,10 @@ body {
     padding: var(--spacing-lg) var(--spacing-md);
     text-align: center;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .app-header h1 {
@@ -140,8 +144,122 @@ body {
 }
 
 /* ==========================================
-   UNIT TOGGLE
+   CONNECTION STATUS INDICATOR
+   Phase 1: Static green indicator showing "Connected"
+   Phase 2: Will integrate with API monitoring for dynamic status
    ========================================== */
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.15);
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 50;
+    font-size: 13px;
+}
+
+/* Status Indicator Dot */
+.connection-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    flex-shrink: 0;
+}
+
+/* Green - Connected State (Phase 1: Always this color) */
+.connection-indicator.connection-connected {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    animation: pulse-connected 2s ease-in-out infinite;
+}
+
+/* Status Text */
+.connection-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #10b981;
+    user-select: none;
+    white-space: nowrap;
+}
+
+/* Enhanced pulse animation for connected state */
+@keyframes pulse-connected {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+        transform: scale(1.05);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        transform: scale(1);
+    }
+}
+
+/* Future states (Phase 2 - commented out for preparation) */
+/*
+.connection-indicator.connection-unstable {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    animation: pulse-yellow 2s ease-in-out infinite;
+}
+
+.connection-indicator.connection-disconnected {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes pulse-yellow {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+    }
+}
+*/
+
+/* ==========================================
+   HEADER CONTROLS (Mute and Help Buttons)
+   ========================================== */
+.header-controls {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.help-btn, .mute-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-btn:hover, .mute-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.help-btn:active, .mute-btn:active {
+    transform: scale(0.95);
+}
 .unit-toggle {
     display: flex;
     background: rgba(100, 120, 255, 0.1);
@@ -761,20 +879,159 @@ body {
 }
 
 /* ==========================================
-   RESPONSIVE DESIGN - DESKTOP
+   ONBOARDING MODAL
    ========================================== */
-@media screen and (min-width: 1024px) {
-    .app-container {
-        max-width: 700px;
+.onboarding-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998; /* Below debug console */
+    animation: fadeIn 0.3s ease;
+}
+
+.onboarding-modal.hidden {
+    display: none !important;
+}
+
+.onboarding-modal-content {
+    background: white;
+    border-radius: var(--radius-lg);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-large);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.onboarding-modal-header {
+    padding: var(--spacing-lg);
+    border-bottom: 2px solid #e0e0e0;
+    text-align: center;
+}
+
+.onboarding-modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: var(--color-text-primary);
+}
+
+.onboarding-modal-body {
+    padding: var(--spacing-lg);
+    line-height: 1.6;
+}
+
+.onboarding-modal-body h3 {
+    margin-top: var(--spacing-lg);
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text-primary);
+}
+
+.onboarding-modal-body h4 {
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-heating);
+}
+
+.onboarding-modal-body ul {
+    margin: var(--spacing-sm) 0;
+    padding-left: var(--spacing-lg);
+}
+
+.onboarding-modal-body li {
+    margin-bottom: var(--spacing-xs);
+}
+
+.onboarding-modal-footer {
+    padding: var(--spacing-lg);
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dont-show-again {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.dont-show-again input {
+    margin: 0;
+}
+
+.onboarding-close-btn {
+    background: var(--color-heating);
+    color: white;
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.onboarding-close-btn:hover {
+    background: var(--color-heating-dark);
+    transform: translateY(-2px);
+}
+
+.onboarding-close-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .onboarding-modal-content {
+        width: 95%;
+        max-height: 90vh;
     }
     
-    .app-header h1 {
-        font-size: 36px;
+    .onboarding-modal-footer {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: stretch;
     }
     
-    .input-content,
-    .monitoring-content {
-        padding: var(--spacing-xl) var(--spacing-lg);
+    .dont-show-again {
+        justify-content: center;
+    }
+    
+    /* Connection Status - Mobile adjustments */
+    .connection-status {
+        padding: 3px 8px;
+        gap: 4px;
+        top: 12px;
+        left: 12px;
+        font-size: 12px;
+    }
+    
+    .connection-indicator {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .connection-text {
+        font-size: 11px;
     }
 }
 

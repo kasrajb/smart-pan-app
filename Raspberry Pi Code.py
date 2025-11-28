@@ -57,29 +57,24 @@ while (wifi.isconnected()==False):
 while True:
     temperature= sensor.read()
     if wifi.isconnected():
-        try:
-            # Send temperature to the web app
+        #try:
             payload= {'feed': 'temperature', 'value': temperature}
             response = urequests.post(url=urlpost, data=json.dumps(payload), headers={'Content-Type': 'application/json'})
-            print("POST Response:", response.status_code)
             print(response.text)
             response.close()
             
-            # Get target temperature from web app
             response = urequests.get(url=urlget)
-            print("GET Response:", response.status_code)
-            print(response.text)
+            print('get response', response.text)
             if response.status_code==200:
                 data = response.json()
-                # The response returns an object with 'value' key
-                if 'value' in data:
-                    new_target = float(data['value'])
-                    if target != new_target:
-                        target = new_target
-                        print("Target updated to:", target)
+                new_target=float(data['value'])
+                print(new_target)
+                if target!=new_target:
+                    target=new_target
+                    print('updated')
             response.close()
-        except Exception as e:
-            print("Error:", str(e))
+        #except:
+            #print("jsonfail")
     gc.collect()
         
     print(sensor.error())
